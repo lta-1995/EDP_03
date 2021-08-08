@@ -34,10 +34,10 @@ CREATE TABLE IF NOT EXISTS `Account`
     `Username`     VARCHAR(50) NOT NULL,
     `Fullname`     VARCHAR(50),
     `DepartmentID` TINYINT UNSIGNED,
-    `PossitionID`  TINYINT UNSIGNED,
+    `PositionID`  TINYINT UNSIGNED,
     `CreateDate`   DATETIME ,
     CONSTRAINT fk_dp_id FOREIGN KEY (`DepartmentID`) REFERENCES `Department` (`DepartmentID`) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT fk_ps_id FOREIGN KEY (`PossitionID`) REFERENCES `Position` (`PositionID`) ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT fk_ps_id FOREIGN KEY (`PositionID`) REFERENCES `Position` (`PositionID`) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 DROP TABLE IF EXISTS `Group`;
@@ -149,7 +149,7 @@ ALTER TABLE `Account`
     DROP CONSTRAINT `fk_dp_id`,
     DROP CONSTRAINT `fk_ps_id`;
 /* INSERT DATA bang Account */
-INSERT INTO `Account`(`Email`, `Username`, `Fullname`, `DepartmentID`, `PossitionID`, `CreateDate`)
+INSERT INTO `Account`(`Email`, `Username`, `Fullname`, `DepartmentID`, `PositionID`, `CreateDate`)
 VALUES ('vti_account1@vtiacademy.com', 'vti1', 'Nguyen Van Tinh', 1, 1, '2019-12-01'),
        ('vti_account2@vtiacademy.com', 'vti2', 'Trinh Hoai Linh', 1, 2, '2020-12-01'),
        ('vti_account3@vtiacademy.com', 'vti3', 'Nguyen Van Test', 1, 1, '2020-07-01'),
@@ -315,29 +315,28 @@ having count(A.departmentid) >=3;
 
 -- Question 5: Viết lệnh để lấy ra danh sách câu hỏi được sử dụng trong đề thi nhiều nhất
 
-SELECT E.QuestionID, Q.Content, count(E.Questionid) as 'Số lần đươc hỏi' FROM examquestion E
-INNER JOIN question Q ON Q.QuestionID = E.QuestionID
-GROUP BY E.QuestionID
-HAVING count(E.QuestionID) = (SELECT MAX(countQues) as maxcountQues FROM (
-SELECT COUNT(E.QuestionID) AS countQues FROM examquestion E
-GROUP BY E.QuestionID) AS countTable);
+select EQ.questionID , Q.Content , count(EQ.questionID) as 'Số lần được hỏi là' from examquestion EQ
+inner join Question Q 
+on EQ.questionID = Q.QuestionID
+group by EQ.QuestionID
+having count(EQ.QuestionID) = (select max(checker) from (select EQ.QuestionID , count(EQ.ExamID) as checker 
+														from examquestion EQ
+														group by EQ.QuestionID) as maximum);
 
 -- Question 6: Thống kê mỗi category Question được sử dụng trong bao nhiêu Question
 
-select CQ.Categoryname , Q.Content, Q.questionid , count(CQ.Categoryname) as 'số lần được hỏi'
-from categoryquestion CQ
-inner join question Q
-on CQ.CategoryID = Q.CategoryID
-group by CQ.CategoryName;
+Select CQ.CategoryID , CQ.CategoryName , count(q.categoryID) as `Số lần được hỏi`
+from `question` Q right join categoryquestion CQ on cq.categoryid = q.categoryid
+group by (categoryid);
 
 
 -- Question 7: Thông kê mỗi Question được sử dụng trong bao nhiêu Exam
 
-Select Q.Questionid, Q.Content, E.Examid, count(Q.Questionid) as 'số lần được hỏi'
-from question Q 
-inner join exam E 
-on Q.Categoryid = E.CategoryID
-group by Q.Questionid;
+Select Q.QuestionID , count(EQ.QuestionID) as 'số lần được sử dụng'
+from examquestion EQ 
+right join Question Q 
+on Q.QuestionID = EQ.QuestionID
+Group by (EQ.QuestionID);
 
 -- Question 8: Lấy ra Question có nhiều câu trả lời nhất
 
@@ -350,19 +349,23 @@ GROUP BY B.QuestionID) AS countAnsw);
 
 -- Question 9: Thống kê số lượng account trong mỗi group
 
-Select A.Accountid , GA.GroupID , count(A.accountid) as 'số lượng account trong mỗi group'
-from `Account` A 
-inner join `Groupaccount` GA
-on A.Accountid = GA.Accountid
-group by Accountid;
+Select G.GroupID , count(GA.GroupID) as 'Số người trong Group này'
+from `group` G 
+left join groupaccount GA
+on G.GroupID = GA.GroupID
+Group by G.GroupID;
 
 -- Question 10: Tìm chức vụ có ít người nhất
 
-/* Select P.Positionname ,P.PositionID , count(A.positionID) as 'số người mang chức vụ này' from `account`
-inner join position p 
-on A.positionID = P.positionID
-group by A.positionID
-having count(A.positionID) = */
+Select P.Positionname , P.PositionID , count(A.positionID) as 'số người mang chức vụ này' from `account` A
+inner join position P 
+on A.PositionID = P.positionID
+group by A.PositionID
+having count(A.PositionID) = (Select min(checker) from (select A.PositionID , count(A.PositionID) as checker
+														from `account` A
+														group by A.PositionID) as minimum);
+
+
 
 
 -- Question 11: Thống kê mỗi phòng ban có bao nhiêu dev, test, scrum master, PM
@@ -370,15 +373,18 @@ having count(A.positionID) = */
 Select D.Departmentname, P.Positionname, count(P.Positionname) as 'Số người làm ở vị trí này là' from `account` A
 inner join Department D on D.Departmentid = A.Departmentid
 inner join position p on P.Positionid = A.Positionid
-group by P.Positionname; 
+group by P.PositionID, d.DepartmentID;
+
+
+
 
 /* Question 12: Lấy thông tin chi tiết của câu hỏi bao gồm: thông tin cơ bản của question, loại câu hỏi, 
 ai là người tạo ra câu hỏi, câu trả lời là gì*/
 
 Select Q.QuestionID , CQ.Categoryname, Q.Content , A.Fullname , ANS.Content, Q.CreatorID, TQ.Typename from Question Q
-inner join TypeQuestion TQ on Q.TypeID = TQ.TypeID
-inner join answer ANS on Q.QuestionID = ANS.QuestionID
-inner join `account` A on Q.CreatorID = A.AccountID
+inner join TypeQuestion TQ 		on Q.TypeID = TQ.TypeID
+inner join answer ANS 			on Q.QuestionID = ANS.QuestionID
+inner join `account` A			on Q.CreatorID = A.AccountID
 inner join  Categoryquestion CQ on Q.CategoryID = CQ.CategoryID
 order by Q.QuestionID;
 
@@ -391,9 +397,9 @@ group by Q.Questionid;
 
 -- Question 14: Lấy ra group không có account nào
 
-SELECT * FROM `group` g
+SELECT *  FROM `group` g
 LEFT JOIN `groupaccount` ga ON g.GroupID = ga.GroupID
-WHERE GA.AccountID IS NULL;
+Where AccountID is NUll;
 
 -- Question 16: Lấy ra question không có answer nào
 
