@@ -286,23 +286,27 @@ VALUES (1, 1),
 -- Question 1: Tạo view có chứa danh sách nhân viên thuộc phòng ban sale
 
 Create view list_of_Sale_staff AS
-	Select 		A.AccountID , A.Email , A.Fullname
+	Select 		A.AccountID , D.DepartmentID, A.Email , A.Fullname
 	from 		department D
 	inner join `Account` A 
-	on 			D.DepartmentID = A.Accountid
-	where 		D.Departmentid = 5;
+	on 			D.DepartmentID = A.DepartmentID
+	where 		D.Departmentname  = 'Phong Sale';
 
+Select * from list_of_Sale_staff;
 -- Question 2: lấy ra thông tin các account tham gia vào nhiều group nhất
 
 /* Cách 1*/
+Create View account_tham_gia_group as
+									select GA.AccountID , count(GA.GroupID) as checker
+									from `groupaccount` GA 
+									Group by GA.accountid;
+
 Select GA.AccountID, A.Fullname, A.username , count(GA.Accountid) as 'Số_Group_tham_gia_là' 
 from groupaccount GA
 inner join `account` A
 on  GA.AccountID = A.AccountID
 group by GA.Accountid
-having count(GA.Accountid) = (select max(checker) from (select GA.AccountID , count(GA.GroupID) as checker
-							  from `groupaccount` GA 
-							  Group by GA.accountid) as maximum);
+having count(GA.Accountid) = (select max(checker) from account_tham_gia_group);
 
 /* Cách 2*/
 
@@ -321,16 +325,19 @@ having count(GA.Accountid) = (select max(checker) from CTE_MaxJoinGroup);
 -- Question 3: Tạo view có chứa câu hỏi có những content quá dài (content quá 300 từ được coi là quá dài) và xóa nó đi
 
 Create View Cau_Hoi_Co_content_dai as
-select QuestionID , Content 
-from Question
-where character_length(Content) >= 7;
+									select QuestionID 
+									from Question
+									where character_length(Content) >= 7;
 
-
-/*delete
-from Cau_Hoi_Co_content_dai */
+Select * from Cau_Hoi_Co_content_dai;
+/*begin work;
+delete
+from  Question
+where QuestionID in (Select * from Cau_Hoi_Co_content_dai);
+rollback; */
 
 -- Question 4: Tạo view có chứa danh sách các phòng ban có nhiều nhân viên nhất
-
+-- Cách 1:
 With CTE_So_NV_moi_phong AS (select A.DepartmentID , count(A.DepartmentID) as checker
 									from `account` A 
 									group by A.DepartmentID)
@@ -341,7 +348,21 @@ on A.DepartmentID = D.DepartmentID
 group by A.DepartmentID 
 having count(A.DepartmentID) = (select max(checker) from CTE_So_NV_moi_phong );
 
+
+-- Cách 2:
+Create View So_NV_moi_phong AS 
+								select A.DepartmentID , count(A.DepartmentID) as checker
+									from `account` A 
+									group by A.DepartmentID;
+Select A.DepartmentID , D.Departmentname , count(A.DepartmentID) as 'Số nhân viên là' from `account` A 
+inner join department D 
+on A.DepartmentID = D.DepartmentID 
+group by A.DepartmentID 
+having count(A.DepartmentID) = (select max(checker) from So_NV_moi_phong);       
+                         
 -- Question 5: Tạo view có chứa tất các các câu hỏi do user họ Nguyễn tạo
+
+-- Cách 1:
 with CTE_user_ho_Nguyen AS (Select AccountID  
 							from `Account` A 
 							where fullname like 'Nguyen%')
@@ -350,8 +371,16 @@ Select *
 from question Q 
 Where CreatorID in (Select * from CTE_user_ho_Nguyen);
 		
+-- Cách 2:
+Create VIEW user_ho_Nguyen AS 
+						   Select AccountID  
+						   from `Account` A 
+						   where fullname like 'Nguyen%';
 
-
+Select *
+from question Q 
+Where CreatorID in (Select * from user_ho_Nguyen);
+		
 
 
 
